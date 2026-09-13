@@ -87,7 +87,7 @@ Feel free to open a PR if you've managed to get this working on other linux host
    ```
 4. Run the script, either straight from GitHub:
    ```bash
-   curl https://raw.githubusercontent.com/phR0ze/nixos-consume/master/consume | NIXPKGS=nixos-25.11 bash -x
+   curl https://raw.githubusercontent.com/phR0ze/nixos-consume/master/consume | NIXPKGS=nixos-25.11 bash
    ```
 5. Your SSH session to the original OS will drop the moment `kexec` runs (it kills the whole
    process tree). Reconnect with the same key after a few seconds — you'll land in the
