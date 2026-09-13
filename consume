@@ -37,7 +37,8 @@ minRamMB=2048
 #   esp, bootFs   (EFI only) ESP device and its mount point
 #   grubdev       (BIOS only) disk to install GRUB to
 #   zramswap      whether to enable zramSwap.enable on the target
-#   swapcfg       Nix swapDevices literal, when an existing swap device is carried over
+#   swapcfg       Nix swapDevices literal: an existing real swap device carried over, or (by
+#                 default, unless NO_FALLBACK_SWAP=y) a fallback swapfile added for zram-only targets
 #   keys          harvested SSH authorized_keys, one "type key comment" per line
 
 ### Small predicates and helpers ##############################################################
@@ -94,6 +95,28 @@ deriveStateVersion() {
 # reading the hypervisor's serial socket directly, as a last-resort debugging aid.
 serialKernelParamsNix() {
   [[ "$SERIAL_CONSOLE" == "y" ]] && echo '  boot.kernelParams = [ "console=tty1" "console=ttyS0,115200" ];'
+}
+
+# Sysctl + OOM-daemon tuning paired with zramSwap for constrained-RAM targets: swappiness=100
+# because swapping into zram is nearly as cheap as RAM; watermark_scale_factor wakes kswapd
+# earlier to reclaim proactively; min_free_kbytes raises the safety headroom above the ~5-8MB
+# the kernel auto-computes on a 2GB box. systemd.oomd's root/user slices are opt-in even though
+# the daemon itself defaults on, so enabling them is what actually activates OOM protection.
+memoryTuningNix() {
+  [[ "$NO_MEM_TUNING" == "y" ]] && return
+  cat << 'EOF'
+  boot.kernel.sysctl = {
+    "vm.swappiness" = 100;
+    "vm.vfs_cache_pressure" = 50;
+    "vm.min_free_kbytes" = 16384;
+    "vm.watermark_boost_factor" = 0;
+    "vm.watermark_scale_factor" = 125;
+  };
+  systemd.oomd = {
+    enableRootSlice = true;
+    enableUserSlices = true;
+  };
+EOF
 }
 
 primaryInterface() {
@@ -220,6 +243,15 @@ checkExistingSwap() {
       swapcfg="swapDevices = [ { device = \"${swapDevice}\"; } ];"
     fi
   fi
+
+  # zram-only is risky under memory pressure (zram competes with the RAM it's protecting, and
+  # there's no disk to overflow into before OOM-killer). Whenever the target is still going to
+  # run zram-only (no real swap device was carried over above), add a small disk-backed
+  # swapfile as a lower-priority fallback (see README's RAM section). NixOS auto-creates the
+  # file on activation via the `size` attribute; no manual mkdir/fallocate needed here.
+  if [[ "$zramswap" == "true" && "$NO_FALLBACK_SWAP" != "y" ]]; then
+    swapcfg="swapDevices = [ { device = \"/swap/swapfile\"; size = 2048; priority = 5; } ];"
+  fi
 }
 
 # Harvests SSH authorized_keys from /root/.ssh/authorized_keys on the running foreign OS.
@@ -258,14 +290,18 @@ printSystemSummary() {
     bootLine="BIOS (legacy), GRUB device $grubdev"
   fi
 
+  local fallbackNote=""
+  [[ "$zramswap" == "true" && "$NO_FALLBACK_SWAP" != "y" ]] \
+    && fallbackNote=" + fallback swapfile (2G @ /swap/swapfile, low priority)"
+
   if [[ "$zramswap" == "false" ]]; then
     swapLine="existing device $swapDevice carried over (zramSwap disabled on target)"
   elif [[ -n "$swapDevice" ]]; then
-    swapLine="existing swapfile $swapDevice (sufficient build headroom; target still uses zramSwap)"
+    swapLine="existing swapfile $swapDevice (sufficient build headroom; target uses zramSwap$fallbackNote)"
   elif [[ "$NO_SWAP" == "y" ]]; then
-    swapLine="none (NO_SWAP=y)"
+    swapLine="none for build (NO_SWAP=y); target uses zramSwap$fallbackNote"
   else
-    swapLine="temporary 1G swapfile for the build (removed afterward)"
+    swapLine="temporary 1G swapfile for the build (removed afterward); target uses zramSwap$fallbackNote"
   fi
 
   keysCount=$([[ -z "$keys" ]] && echo 0 || wc -l <<< "$keys")
@@ -285,7 +321,7 @@ consume - convert this host to NixOS in place
  - Swap:      $swapLine
  - SSH keys:  $keysCount authorized key(s) from /root/.ssh/authorized_keys carried over
  - NixOS:     $NIXPKGS (system.stateVersion $(deriveStateVersion))
- - Options:   STATIC_IP=${STATIC_IP:-auto} NO_SWAP=${NO_SWAP:-n} NO_KEXEC=${NO_KEXEC:-n} SERIAL_CONSOLE=${SERIAL_CONSOLE:-n}
+ - Options:   STATIC_IP=${STATIC_IP:-auto} NO_SWAP=${NO_SWAP:-n} NO_FALLBACK_SWAP=${NO_FALLBACK_SWAP:-n} NO_MEM_TUNING=${NO_MEM_TUNING:-n} NO_KEXEC=${NO_KEXEC:-n} SERIAL_CONSOLE=${SERIAL_CONSOLE:-n}
 
 EOF
 }
@@ -350,7 +386,8 @@ renderConfigurationNix() {
 
   boot.tmp.cleanOnBoot = true;
 $(serialKernelParamsNix)
-  zramSwap.enable = ${zramswap};
+  zramSwap = { enable = ${zramswap}; priority = 100; };
+$(memoryTuningNix)
   networking.hostName = "$hostName";
   networking.domain = "$(hostname -d)";
   services.openssh.enable = true;

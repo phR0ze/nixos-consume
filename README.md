@@ -51,14 +51,17 @@ testing, a 10GB disk ran out of space mid-build with `nix build` failing outrigh
 ... note: build failure may have been caused by lack of free disk space`, this is why.
 
 #### RAM
-Plan **at least 2GB of RAM**, and be aware that even 2GB is tight. The ephemeral kexec
-installer is built from `netboot-minimal.nix` rather than `netboot-base.nix` specifically
-because of this: `netboot-base.nix` bundles a full offline nixpkgs channel copy, pushing the
-kexec payload past 1GB — large enough that both `kexec_load` and `kexec_file_load` failed
-outright on a 2GB test VM (the former returned `EINVAL`, the latter crashed the kernel with a
-page fault). `netboot-minimal.nix` keeps the payload small enough to load reliably, at the
-cost of needing working network access immediately after the `kexec` jump (no offline channel
-copy).
+Plan **at least 2GB of RAM** — even that is tight. The kexec installer uses `netboot-minimal.nix`
+(network install, no offline channel copy) instead of the larger `netboot-base.nix` which failed
+outright on a 2GB test VM (`EINVAL` / kernel page fault). Typically target VPS systems will always
+have limited RAM due to the cost which is why the defaults are to set following:
+```nix
+# Default NixOS recommend value, set as the highest swap priority
+zramSwap = { enable = true; memoryPercent = 50; priority = 100; algorithm = "zstd"; };
+
+# Cheap fallback insurance to use at a lower priority only after zramSwap is full
+swapDevices = [{ device = "/swap/swapfile"; size = 2048; priority = 5; }];
+```
 
 #### SSH Keys
 Ensure that your freshly provisioned host has the root account properly configured to be able to SSH
@@ -69,10 +72,10 @@ into the system.
 ### Tested Linux Distros and VPS providers
 Feel free to open a PR if you've managed to get this working on other linux hosting combinations.
 
-| Distro      | Flavor  | Version | Hosting       | Firmware |
-| ----------- | ------- | ------- | ------------- | -------- |
-| Ubuntu      | Server  | 24.04   | KVM/QEMU      | EFI      |
-| Ubuntu      | Server  | 24.04   | KVM/QEMU      | BIOS     |
+| Distro            | Flavor          | Version   | Hosting             | Firmware |
+| ----------------- | --------------- | --------- | ------------------- | -------- |
+| Ubuntu            | Server          | 24.04     | KVM/QEMU            | EFI      |
+| Ubuntu            | Server          | 24.04     | KVM/QEMU            | BIOS     |
 
 ## Getting started
 
@@ -102,6 +105,8 @@ Feel free to open a PR if you've managed to get this working on other linux host
 | `NIXOS_CONFIG=<url>`    | unset         | Custom configuration.nix (fetched, not generated)  |
 | `STATIC_IP=y`           | auto          | Force static network config (else auto-detected)   |
 | `NO_SWAP=y`             | unset         | Skip temporary swapfile before build               |
+| `NO_FALLBACK_SWAP=y`    | unset         | Skip the target's fallback disk swapfile           |
+| `NO_MEM_TUNING=y`       | unset         | Skip sysctl/oomd memory tuning on target           |
 | `NO_KEXEC=y`            | unset         | Stop before kexec; leaves configs for inspection   |
 | `NIX_INSTALL_URL=<url>` | nixos.org URL | Override Nix installer URL                         |
 | `SERIAL_CONSOLE=y`      | unset         | Add serial console kernel params                   |
