@@ -19,21 +19,66 @@ I wanted something that supports the new kexec NixOS unstable way of doing thing
 purely flake based.
 
 ### Quick links
-- [Overview](#overview)
+- [Getting started](#getting-started)
+  - [Convert your VPS](#convert-your-vps)
+  - [Environment variables](#environment-variables)
+  - [Tested Linux Distros and VPS providers](#tested-linux-distros-and-vps-providers)
+- [Details](#details)
   - [For those that like to know](#for-those-that-like-to-know)
   - [Prerequisites](#prerequisites)
     - [Disk space](#disk-space)
     - [RAM](#ram)
     - [SSH Keys](#ssh-keys)
-  - [Tested Linux Distros and VPS providers](#tested-linux-distros-and-vps-providers)
-- [Getting started](#getting-started)
-  - [Convert your VPS](#convert-your-vps)
-  - [Environment variables](#environment-variables)
 - [Development](#development)
   - [Running unpublished changes](#running-unpublished-changes)
   - [Testing with a local quickemu VM](#testing-with-a-local-quickemu-vm)
 
-## Overview
+## Getting started
+
+### Convert your VPS
+Ensure your host is configured with at least ***2GB of RAM*** and a ***20GB or larger disk*** see
+[prerequisites](#prerequisites).
+
+1. Provision your host using Ubuntu Server 24.04
+2. Ensure your SSH authorized key is in `/root/.ssh/authorized_keys` 
+   ```bash
+   scp ~/.ssh/authorized_keys <user>@<host>:/tmp
+   ssh <user>@<host>:/tmp
+   sudo install -m 600 -o root -g root /tmp/authorized_keys /root/.ssh/authorized_keys
+   ```
+3. Run the script, either straight from GitHub:
+   ```bash
+   curl https://raw.githubusercontent.com/phR0ze/nixos-consume/master/consume | NIXPKGS=nixos-25.11 bash
+   ```
+6. Your SSH session to the original OS will drop the moment `kexec` runs (it kills the whole
+   process tree). Reconnect with the same key after a few seconds — you'll land in the installer.
+   Once logged back in you can watch progress through `journalctl -u consume-install -f`. Once that
+   completes you'll loose your connection again as it reboots into the final system.
+
+### Environment variables
+
+| Variable                | Default       | Description                                        |
+| ----------------------- | ------------- | -------------------------------------------------- |
+| `UNATTENDED=y`          | unset         | Skip confirmation prompt                           |
+| `NIXPKGS`               | `25.11`       | Nixpkgs flake ref; also sets stateVersion          |
+| `NIXOS_FLAKE=<url>`     | unset         | Custom flake.nix, fetched instead of generated     |
+| `NIXOS_CONFIG=<url>`    | unset         | Custom configuration.nix (fetched, not generated)  |
+| `STATIC_IP=y`           | auto          | Force static network config (else auto-detected)   |
+| `FALLBACK_SWAP=n`       | `y`           | Skip the target's fallback disk swapfile           |
+| `MEM_TUNING=n`          | `y`           | Skip sysctl/oomd memory tuning on target           |
+| `KEXEC=n`               | `y`           | Stop before kexec; leaves configs for inspection   |
+| `NIX_INSTALL_URL=<url>` | nixos.org URL | Override Nix installer URL                         |
+| `SERIAL_CONSOLE=y`      | unset         | Add serial console kernel params                   |
+
+### Tested Linux Distros and VPS providers
+Feel free to open a PR if you've managed to get this working on other linux hosting combinations.
+
+| Distro            | Flavor          | Version   | Hosting             | Firmware |
+| ----------------- | --------------- | --------- | ------------------- | -------- |
+| Ubuntu            | Server          | 24.04     | KVM/QEMU            | EFI      |
+| Ubuntu            | Server          | 24.04     | KVM/QEMU            | BIOS     |
+
+## Details
 
 ### For those that like to know
 ***nixos-consume*** will interogate the currently running Linux to determine key system details such
@@ -68,47 +113,6 @@ Ensure that your freshly provisioned host has the root account properly configur
 into the system using `/root/.ssh/authorized_keys`. The resulting NixOS system will have no accounts
 other than root and no password. SSH'ing in using your ssh key will be the only mechanism to get back
 into the system.
-
-### Tested Linux Distros and VPS providers
-Feel free to open a PR if you've managed to get this working on other linux hosting combinations.
-
-| Distro            | Flavor          | Version   | Hosting             | Firmware |
-| ----------------- | --------------- | --------- | ------------------- | -------- |
-| Ubuntu            | Server          | 24.04     | KVM/QEMU            | EFI      |
-| Ubuntu            | Server          | 24.04     | KVM/QEMU            | BIOS     |
-
-## Getting started
-
-### Convert your VPS
-1. Ensure your host is configured with at least ***2GB of RAM*** and a ***20GB or larger disk***
-2. Provision your host using Ubuntu Server 24.04
-3. Ensure your SSH authorized key is in `/root/.ssh/authorized_keys` 
-   ```bash
-   scp ~/.ssh/authorized_keys <user>@<host>:/tmp
-   ssh <user>@<host>:/tmp
-   sudo install -m 600 -o root -g root /tmp/authorized_keys /root/.ssh/authorized_keys
-   ```
-4. Run the script, either straight from GitHub:
-   ```bash
-   curl https://raw.githubusercontent.com/phR0ze/nixos-consume/master/consume | NIXPKGS=nixos-25.11 bash
-   ```
-5. Your SSH session to the original OS will drop the moment `kexec` runs (it kills the whole
-   process tree). Reconnect with the same key after a few seconds — you'll land in the
-
-### Environment variables
-
-| Variable                | Default       | Description                                        |
-| ----------------------- | ------------- | -------------------------------------------------- |
-| `UNATTENDED=y`          | unset         | Skip confirmation prompt                           |
-| `NIXPKGS`               | `25.11`       | Nixpkgs flake ref; also sets stateVersion          |
-| `NIXOS_FLAKE=<url>`     | unset         | Custom flake.nix, fetched instead of generated     |
-| `NIXOS_CONFIG=<url>`    | unset         | Custom configuration.nix (fetched, not generated)  |
-| `STATIC_IP=y`           | auto          | Force static network config (else auto-detected)   |
-| `NO_FALLBACK_SWAP=y`    | unset         | Skip the target's fallback disk swapfile           |
-| `NO_MEM_TUNING=y`       | unset         | Skip sysctl/oomd memory tuning on target           |
-| `NO_KEXEC=y`            | unset         | Stop before kexec; leaves configs for inspection   |
-| `NIX_INSTALL_URL=<url>` | nixos.org URL | Override Nix installer URL                         |
-| `SERIAL_CONSOLE=y`      | unset         | Add serial console kernel params                   |
 
 ## Development
 

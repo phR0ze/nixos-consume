@@ -38,7 +38,7 @@ minRamMB=2048
 #   grubdev       (BIOS only) disk to install GRUB to
 #   zramswap      whether to enable zramSwap.enable on the target
 #   swapcfg       Nix swapDevices literal: an existing real swap device carried over, or (by
-#                 default, unless NO_FALLBACK_SWAP=y) a fallback swapfile added for zram-only targets
+#                 default, unless FALLBACK_SWAP=n) a fallback swapfile added for zram-only targets
 #   keys          harvested SSH authorized_keys, one "type key comment" per line
 
 ### Small predicates and helpers ##############################################################
@@ -103,7 +103,7 @@ serialKernelParamsNix() {
 # the kernel auto-computes on a 2GB box. systemd.oomd's root/user slices are opt-in even though
 # the daemon itself defaults on, so enabling them is what actually activates OOM protection.
 memoryTuningNix() {
-  [[ "$NO_MEM_TUNING" == "y" ]] && return
+  [[ "$MEM_TUNING" == "n" ]] && return
   cat << 'EOF'
   boot.kernel.sysctl = {
     "vm.swappiness" = 100;
@@ -246,7 +246,7 @@ checkExistingSwap() {
   # run zram-only (no real swap device was carried over above), add a small disk-backed
   # swapfile as a lower-priority fallback (see README's RAM section). NixOS auto-creates the
   # file on activation via the `size` attribute; no manual mkdir/fallocate needed here.
-  if [[ "$zramswap" == "true" && "$NO_FALLBACK_SWAP" != "y" ]]; then
+  if [[ "$zramswap" == "true" && "$FALLBACK_SWAP" != "n" ]]; then
     swapcfg="swapDevices = [ { device = \"/swap/swapfile\"; size = 2048; priority = 5; } ];"
   fi
 }
@@ -288,7 +288,7 @@ printSystemSummary() {
   fi
 
   local fallbackNote=""
-  [[ "$zramswap" == "true" && "$NO_FALLBACK_SWAP" != "y" ]] \
+  [[ "$zramswap" == "true" && "$FALLBACK_SWAP" != "n" ]] \
     && fallbackNote=" + fallback swapfile (2G @ /swap/swapfile, low priority)"
 
   if [[ "$zramswap" == "false" ]]; then
@@ -314,7 +314,7 @@ consume - convert this host to NixOS in place
  - Swap:      $swapLine
  - SSH keys:  $keysCount authorized key(s) from /root/.ssh/authorized_keys carried over
  - NixOS:     $NIXPKGS (system.stateVersion $(deriveStateVersion))
- - Options:   STATIC_IP=${STATIC_IP:-auto} NO_FALLBACK_SWAP=${NO_FALLBACK_SWAP:-n} NO_MEM_TUNING=${NO_MEM_TUNING:-n} NO_KEXEC=${NO_KEXEC:-n} SERIAL_CONSOLE=${SERIAL_CONSOLE:-n}
+ - Options:   STATIC_IP=${STATIC_IP:-auto} FALLBACK_SWAP=${FALLBACK_SWAP:-y} MEM_TUNING=${MEM_TUNING:-y} KEXEC=${KEXEC:-y} SERIAL_CONSOLE=${SERIAL_CONSOLE:-n}
 
 EOF
 }
@@ -694,8 +694,8 @@ checkKexecTree
 
 removeSwap
 
-if [[ "$NO_KEXEC" != "y" ]]; then
+if [[ "$KEXEC" != "n" ]]; then
   triggerKexec
 else
-  echo "NO_KEXEC set; generated configs are in $targetDir and $kexecDir. Run $kexecDir/result/kexec-boot manually to proceed."
+  echo "KEXEC=n set; generated configs are in $targetDir and $kexecDir. Run $kexecDir/result/kexec-boot manually to proceed."
 fi
