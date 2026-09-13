@@ -104,7 +104,6 @@ Feel free to open a PR if you've managed to get this working on other linux host
 | `NIXOS_FLAKE=<url>`     | unset         | Custom flake.nix, fetched instead of generated     |
 | `NIXOS_CONFIG=<url>`    | unset         | Custom configuration.nix (fetched, not generated)  |
 | `STATIC_IP=y`           | auto          | Force static network config (else auto-detected)   |
-| `NO_SWAP=y`             | unset         | Skip temporary swapfile before build               |
 | `NO_FALLBACK_SWAP=y`    | unset         | Skip the target's fallback disk swapfile           |
 | `NO_MEM_TUNING=y`       | unset         | Skip sysctl/oomd memory tuning on target           |
 | `NO_KEXEC=y`            | unset         | Stop before kexec; leaves configs for inspection   |

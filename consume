@@ -231,9 +231,6 @@ checkExistingSwap() {
   zramswap=true
   swapcfg=""
   if [[ -n "$swapShow" ]]; then
-    # Any already-active swap (file or device) is enough headroom for the build phase; no
-    # need for makeSwap's temporary swapfile on top of it.
-    NO_SWAP=y
     swapDevice="${swapShow%% *}"
     if [[ "$swapDevice" == "/dev/"* ]]; then
       # Only a real block device survives the target root partition being reformatted in
@@ -295,11 +292,7 @@ printSystemSummary() {
     && fallbackNote=" + fallback swapfile (2G @ /swap/swapfile, low priority)"
 
   if [[ "$zramswap" == "false" ]]; then
-    swapLine="existing device $swapDevice carried over (zramSwap disabled on target)"
-  elif [[ -n "$swapDevice" ]]; then
-    swapLine="existing swapfile $swapDevice (sufficient build headroom; target uses zramSwap$fallbackNote)"
-  elif [[ "$NO_SWAP" == "y" ]]; then
-    swapLine="none for build (NO_SWAP=y); target uses zramSwap$fallbackNote"
+    swapLine="existing device $swapDevice carried over (zramSwap disabled on target); temporary 1G swapfile for the build (removed afterward)"
   else
     swapLine="temporary 1G swapfile for the build (removed afterward); target uses zramSwap$fallbackNote"
   fi
@@ -321,7 +314,7 @@ consume - convert this host to NixOS in place
  - Swap:      $swapLine
  - SSH keys:  $keysCount authorized key(s) from /root/.ssh/authorized_keys carried over
  - NixOS:     $NIXPKGS (system.stateVersion $(deriveStateVersion))
- - Options:   STATIC_IP=${STATIC_IP:-auto} NO_SWAP=${NO_SWAP:-n} NO_FALLBACK_SWAP=${NO_FALLBACK_SWAP:-n} NO_MEM_TUNING=${NO_MEM_TUNING:-n} NO_KEXEC=${NO_KEXEC:-n} SERIAL_CONSOLE=${SERIAL_CONSOLE:-n}
+ - Options:   STATIC_IP=${STATIC_IP:-auto} NO_FALLBACK_SWAP=${NO_FALLBACK_SWAP:-n} NO_MEM_TUNING=${NO_MEM_TUNING:-n} NO_KEXEC=${NO_KEXEC:-n} SERIAL_CONSOLE=${SERIAL_CONSOLE:-n}
 
 EOF
 }
@@ -691,9 +684,7 @@ keys=$(harvestSshKeys)
 printSystemSummary
 confirmProceed
 
-if [[ "$NO_SWAP" != "y" ]]; then
-  makeSwap # headroom for `nix build` on small instances
-fi
+makeSwap # headroom for `nix build` on small instances
 
 makeTargetConfig
 installNix
@@ -701,9 +692,7 @@ validateTargetConfig
 buildKexecTree
 checkKexecTree
 
-if [[ "$NO_SWAP" != "y" ]]; then
-  removeSwap
-fi
+removeSwap
 
 if [[ "$NO_KEXEC" != "y" ]]; then
   triggerKexec
