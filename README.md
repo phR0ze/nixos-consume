@@ -105,7 +105,7 @@ have limited RAM due to the cost which is why the defaults are to set following:
 zramSwap = { enable = true; memoryPercent = 50; priority = 100; algorithm = "zstd"; };
 
 # Cheap fallback insurance to use at a lower priority only after zramSwap is full
-swapDevices = [{ device = "/swap/swapfile"; size = 2048; priority = 5; }];
+swapDevices = [{ device = "/var/swapfile"; size = 2048; priority = 5; }];
 ```
 
 #### SSH Keys
