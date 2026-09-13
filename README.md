@@ -26,10 +26,11 @@ I wanted something that supports the new kexec NixOS unstable way of doing thing
     - [SSH Keys](#ssh-keys)
   - [Tested Linux Distros and VPS providers](#tested-linux-distros-and-vps-providers)
 - [Getting started](#getting-started)
+  - [Convert your VPS](#convert-your-vps)
+  - [Environment variables](#environment-variables)
 - [Development](#development)
   - [Running unpublished changes](#running-unpublished-changes)
   - [Testing with a local quickemu VM](#testing-with-a-local-quickemu-vm)
-- [Environment variables](#environment-variables)
 
 ## Overview
 
@@ -74,6 +75,7 @@ Feel free to open a PR if you've managed to get this working on other linux host
 
 ## Getting started
 
+### Convert your VPS
 1. Ensure your host is configured with at least ***2GB of RAM*** and a ***20GB or larger disk***
 2. Provision your host using Ubuntu Server 24.04
 3. Ensure your SSH authorized key is in `/root/.ssh/authorized_keys` 
@@ -83,6 +85,20 @@ Feel free to open a PR if you've managed to get this working on other linux host
    ```
 5. Your SSH session to the original OS will drop the moment `kexec` runs (it kills the whole
    process tree). Reconnect with the same key after a few seconds — you'll land in the
+
+### Environment variables
+
+| Variable                | Default       | Description                                        |
+| ----------------------- | ------------- | -------------------------------------------------- |
+| `UNATTENDED=y`          | unset         | Skip confirmation prompt                           |
+| `NIXPKGS`               | `25.11`       | Nixpkgs flake ref; also sets stateVersion          |
+| `NIXOS_FLAKE=<url>`     | unset         | Custom flake.nix, fetched instead of generated     |
+| `NIXOS_CONFIG=<url>`    | unset         | Custom configuration.nix (fetched, not generated)  |
+| `STATIC_IP=y`           | auto          | Force static network config (else auto-detected)   |
+| `NO_SWAP=y`             | unset         | Skip temporary swapfile before build               |
+| `NO_KEXEC=y`            | unset         | Stop before kexec; leaves configs for inspection   |
+| `NIX_INSTALL_URL=<url>` | nixos.org URL | Override Nix installer URL                         |
+| `SERIAL_CONSOLE=y`      | unset         | Add serial console kernel params                   |
 
 ## Development
 
@@ -95,15 +111,9 @@ ssh <user>@<host>
 sudo NIXPKGS=nixos-unstable bash -x /tmp/consume
 ```
 
-### 
-*NB*: This script **formats the target host's root partition** as part of the unattended
-install. Any errors during phase 1 (before the `kexec` jump) halt execution safely — the
-original OS is untouched at that point. Once `kexec` runs, there's no going back; run with
-`bash -x` so you have a full log if something goes wrong.
-
 ### Testing with a local quickemu VM
 Given the disclaimer above, don't iterate against a real host - test against a disposable
-local VM instead (see [quickemu](../tech-docs/src/virtualization/virtual_machines/quickemu)
+local VM instead (see [quickemu](https://github.com/phR0ze/tech-docs/tree/master/src/virtualization/virtual_machines/quickemu)
 if you need one set up). The workflow that's been used to develop and test this script:
 
 1. Provision a fresh Ubuntu Server 24.04 VM (at least 20G disk, 2G RAM - see
@@ -146,35 +156,3 @@ baseline VM built with `boot="legacy"` instead of the default EFI firmware) and 
    ephemeral installer's sshd stays up (it does **not** auto-reboot on failure) so you can
    debug and re-run `nixos-install --root /mnt ...` by hand.
 6. On success, the install unit reboots the host straight into the finished NixOS system.
-
-## Environment variables
-
-* `UNATTENDED=y` — skip the confirmation prompt after the system summary is printed.
-  * Default: unset (prompts for confirmation before proceeding)
-* `NIXPKGS` — the `nixpkgs` flake ref to build against (e.g. `nixos-25.11`, `nixos-unstable`).
-  Also used to derive `system.stateVersion`: when `NIXPKGS` matches `nixos-XX.YY`, `stateVersion` is
-  set to `XX.YY`.
-  * Default: `25.11`
-* `NIXOS_FLAKE=<url>` — supply your own `flake.nix`, fetched in place of the generated one.
-  * Default: unset (generate one)
-* `NIXOS_CONFIG=<url>` — supply your own `configuration.nix`
-  * Default: unset (generate one)
-* `STATIC_IP=y` — generate static network config (`networking.nix`) from the currently
-  active network settings, applied to both the ephemeral installer and the final target.
-  This is auto-detected and not needed typically but allows for overriding default behavior.
-  * Default: unset (auto-detected)
-* `NO_SWAP=y` — skip creating a temporary swapfile before building the kexec tree.
-  * Default: unset (a temporary swapfile is created, unless swap is already active on the host)
-* `NO_KEXEC=y` — stop right before the `kexec` jump; generated configs are left under
-  `/etc/consume/target` and `/etc/consume/kexec` for inspection, and you can
-  trigger the install manually via `/etc/consume/kexec/result/kexec-boot`.
-  * Default: unset (proceeds through the `kexec` jump)
-* `NIX_INSTALL_URL=<url>` — override the Nix installer URL used to bootstrap Nix on the
-  original OS.
-  * Default: `https://nixos.org/nix/install`
-* `SERIAL_CONSOLE=y` — add `console=tty1 console=ttyS0,115200` to `boot.kernelParams` on both
-  the ephemeral installer and the final target system. Useful as a last-resort debugging aid
-  when a display or SSH-based console shows nothing (e.g. a hung/broken boot) — you can then
-  read the hypervisor's serial socket directly instead (e.g. `virsh console <vm>`, or
-  `socat - unix-connect:<vm>-serial.socket` for a quickemu VM).
-  * Default: unset (no serial console output)
