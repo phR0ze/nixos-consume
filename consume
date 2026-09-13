@@ -377,6 +377,7 @@ renderConfigurationNix() {
     $network_import
   ];
 
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
   boot.tmp.cleanOnBoot = true;
 $(serialKernelParamsNix)
   zramSwap = { enable = ${zramswap}; algorithm = "zstd"; memoryPercent = 50; priority = 100; };
