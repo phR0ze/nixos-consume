@@ -291,10 +291,12 @@ EOF
 }
 
 # Prompts the operator to confirm before proceeding, unless UNATTENDED=y is set.
+# Reads from /dev/tty rather than stdin: when run as `curl ... | bash`, stdin is the
+# script source itself (already at EOF by the time we get here), not the terminal.
 confirmProceed() {
   [[ "$UNATTENDED" == "y" ]] && return 0
   local reply
-  read -r -p "This will DESTROY the above disk and replace it with NixOS. Continue? [y/N] " reply
+  read -r -p "This will DESTROY the above disk and replace it with NixOS. Continue? [y/N] " reply < /dev/tty
   [[ "$reply" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 1; }
 }
 

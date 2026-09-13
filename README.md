@@ -15,7 +15,8 @@ things go wrong. Luckily you can typically use VPS provider tools to simply wipe
 but there is inherit risk in overwriting a system in place.
 
 This project borrows heavily from the awesome [nixos-infect](https://github.com/elitak/nixos-infect).
-I wanted something that supports the new kexec NixOS unstable way of doing things.
+I wanted something that supports the new kexec NixOS unstable way of doing things. Oh and this is
+purely flake based.
 
 ### Quick links
 - [Overview](#overview)
@@ -79,6 +80,11 @@ Feel free to open a PR if you've managed to get this working on other linux host
 1. Ensure your host is configured with at least ***2GB of RAM*** and a ***20GB or larger disk***
 2. Provision your host using Ubuntu Server 24.04
 3. Ensure your SSH authorized key is in `/root/.ssh/authorized_keys` 
+   ```bash
+   scp ~/.ssh/authorized_keys <user>@<host>:/tmp
+   ssh <user>@<host>:/tmp
+   sudo install -m 600 -o root -g root /tmp/authorized_keys /root/.ssh/authorized_keys
+   ```
 4. Run the script, either straight from GitHub:
    ```bash
    curl https://raw.githubusercontent.com/phR0ze/nixos-consume/master/consume | NIXPKGS=nixos-25.11 bash -x
