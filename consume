@@ -34,7 +34,8 @@ minRamMB=2048
 #   hostName      target hostname
 #   rootfsdev     block device backing /
 #   rootfstype    filesystem type of rootfsdev
-#   esp, bootFs   (EFI only) ESP device and its mount point
+#   esp           (EFI only) ESP device (the target always mounts it at /boot, NixOS's own
+#                 convention, regardless of where the source distro had it mounted)
 #   grubdev       (BIOS only) disk to install GRUB to
 #   zramswap      whether to enable zramSwap.enable on the target
 #   swapcfg       Nix swapDevices literal: an existing real swap device carried over, or (by
@@ -162,16 +163,13 @@ prepareEnv() {
   rootfsdev=$(findmnt -no SOURCE /)
   rootfstype=$(findmnt -no FSTYPE /)
 
-  # $esp/$bootFs (EFI) or $grubdev (BIOS) are used when rendering hardware-configuration.nix
+  # $esp (EFI) or $grubdev (BIOS) is used when rendering hardware-configuration.nix. The
+  # target always mounts the ESP at /boot (NixOS's own convention - see
+  # boot.loader.efi.efiSysMountPoint's default), regardless of whether the source distro had
+  # it at /boot/efi, /boot/EFI, or /boot - findESP itself still checks all three to locate the
+  # ESP device on the *source* system.
   if isEFI; then
     esp="$(findESP)"
-    if mount | grep -q /boot/efi; then
-      bootFs=/boot/efi
-    elif mount | grep -q /boot/EFI; then
-      bootFs=/boot/EFI
-    else
-      bootFs=/boot
-    fi
   else
     grubdev="$(findGrubDevice "$rootfsdev")"
   fi
@@ -282,7 +280,7 @@ printSystemSummary() {
   diskSize=$(lsblk -no SIZE "$rootfsdev" 2>/dev/null | head -1 | xargs)
 
   if isEFI; then
-    bootLine="EFI, ESP $esp mounted at $bootFs"
+    bootLine="EFI, ESP $esp -> mounted at /boot on target"
   else
     bootLine="BIOS (legacy), GRUB device $grubdev"
   fi
@@ -398,14 +396,14 @@ renderHardwareConfigNix() {
   if isEFI; then
     bootcfg=$(cat << EOF
   boot.loader = {
-    efi.efiSysMountPoint = "$bootFs";
+    efi.efiSysMountPoint = "/boot";
     grub = {
       efiSupport = true;
       efiInstallAsRemovable = true;
       device = "nodev";
     };
   };
-  fileSystems."$bootFs" = { device = "$esp"; fsType = "vfat"; };
+  fileSystems."/boot" = { device = "$esp"; fsType = "vfat"; };
 EOF
 )
   else
@@ -567,7 +565,7 @@ buildKexecTree() {
 
   local espMountCmds=""
   if isEFI; then
-    espMountCmds="mkdir -p /mnt$bootFs && mount $esp /mnt$bootFs && find /mnt$bootFs -mindepth 1 -exec rm -rf {} +"
+    espMountCmds="mkdir -p /mnt/boot && mount $esp /mnt/boot && find /mnt/boot -mindepth 1 -exec rm -rf {} +"
   fi
 
   local mkfsCmd
