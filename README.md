@@ -46,11 +46,15 @@ Ensure your host is configured with at least ***2GB of RAM*** and a ***20GB or l
    ssh <user>@<host>:/tmp
    sudo install -m 600 -o root -g root /tmp/authorized_keys /root/.ssh/authorized_keys
    ```
-3. Run the script, either straight from GitHub:
+3. Switch to the root user
+   ```bash
+   sudo su
+   ```
+4. Run the script, either straight from GitHub:
    ```bash
    curl https://raw.githubusercontent.com/phR0ze/nixos-consume/master/consume | NIXPKGS=nixos-25.11 bash
    ```
-6. Your SSH session to the original OS will drop the moment `kexec` runs (it kills the whole
+5. Your SSH session to the original OS will drop the moment `kexec` runs (it kills the whole
    process tree). Reconnect with the same key after a few seconds — you'll land in the installer.
    Once logged back in you can watch progress through `journalctl -u consume-install -f`. Once that
    completes you'll loose your connection again as it reboots into the final system.
