@@ -57,8 +57,14 @@ Ensure your host is configured with at least ***2GB of RAM*** and a ***20GB or l
 5. Your SSH session to the original OS will drop the moment `kexec` runs (it kills the whole
    process tree). Reconnect with the same key after a few seconds — you'll land in the installer.
    Once logged back in you can watch progress through `journalctl -u consume-install -f`. Once that
-   completes you'll loose your connection again as it reboots into the final system. Note since the
-   system is being completely rebuilt you will get a new SSH fingerprint you'll have to accept.
+   completes you'll loose your connection again as it reboots into the final system.
+
+6. Log back into your system with `root` as that will be the only user that exists in the new system
+   and only accessible by the previously configured public key. Also note since the system is being
+   completely rebuilt you will get a new SSH fingerprint you'll have to accept.
+   ```bash
+   ssh root@<host>
+   ```
 
 ### Environment variables
 
