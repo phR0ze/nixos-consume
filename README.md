@@ -107,6 +107,7 @@ Ensure your host is configured with at least ***2GB of RAM*** and a ***20GB or l
    ssh root@<host>
    mkdir -p ~/.config/sops/age/
    install -m 600 -o root -g root /tmp/keys.txt /root/.config/sops/age/keys.txt
+   rm /tmp/keys.txt
    ```
 7. Deploy your configuration. here's my personal example
    1. Create the nix shell that has your deps e.g.
@@ -121,7 +122,7 @@ Ensure your host is configured with at least ***2GB of RAM*** and a ***20GB or l
       # othewise you'll want to use the existing and build from it.
       rm *
       rm .*
-      git clone https://github.com/phR0ze/nixos-config
+      git clone https://github.com/phR0ze/nixos-config .
       ```
    3. Apply your config typically `nixos-rebuild switch --flake "${CONFIG_DIR}#${HOST}"`
       ```bash
