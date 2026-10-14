@@ -75,7 +75,7 @@ Ensure your host is configured with at least ***2GB of RAM*** and a ***20GB or l
 4. Run the script the script as `root`
    ```bash
    sudo su
-   curl https://raw.githubusercontent.com/phR0ze/nixos-consume/master/consume | NIXPKGS=nixos-unstable bash
+   curl https://raw.githubusercontent.com/phR0ze/nixos-consume/main/consume | NIXPKGS=nixos-unstable bash
 
    # Example output
    consume - convert this host to NixOS in place

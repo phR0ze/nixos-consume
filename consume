@@ -348,11 +348,25 @@ removeSwap() {
   swapMade=""
 }
 
+# Redirects TMPDIR to the root filesystem for the build: some VPS images mount /tmp as a small,
+# noexec tmpfs, which breaks the Nix installer (it unpacks and executes its `install` script
+# under $TMPDIR) and would cap the space available to `nix build`.
+makeTmpDir() {
+  TMPDIR=$(mktemp -d /consume.XXXXX.tmp)
+  export TMPDIR
+}
+
+removeTmpDir() {
+  rm -rf /consume.*.tmp
+  unset TMPDIR
+}
+
 # Safety net for `set -e` aborting mid-build (e.g. installNix/buildKexecTree hitting a
 # network hiccup): without this, a failure between makeSwap and removeSwap leaves the
 # temporary swapfile active and on disk instead of getting cleaned up. Never fires after a
 # successful triggerKexec, since `exec` replaces the process rather than exiting normally.
 cleanupSwapOnExit() {
+  removeTmpDir
   [[ "$swapMade" == "y" ]] && removeSwap
 }
 
@@ -690,6 +704,7 @@ printSystemSummary
 confirmProceed
 
 makeSwap # headroom for `nix build` on small instances
+makeTmpDir
 
 makeTargetConfig
 installNix
@@ -697,6 +712,7 @@ validateTargetConfig
 buildKexecTree
 checkKexecTree
 
+removeTmpDir
 removeSwap
 
 if [[ "$KEXEC" != "n" ]]; then
