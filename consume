@@ -329,9 +329,13 @@ confirmProceed() {
 
 ### Phase 3: Build headroom ####################################################################
 
+# Lives on the root filesystem (already vetted by checkDiskSpace) rather than /tmp: some VPS
+# images mount /tmp as a tmpfs capped at half of RAM, where a 1G file won't fit on a 2G host -
+# and swap backed by RAM would be pointless anyway.
 makeSwap() {
-  swapFile=$(mktemp /tmp/consume.XXXXX.swp)
-  dd if=/dev/zero "of=$swapFile" bs=1M count=$((1 * 1024))
+  swapFile=$(mktemp /consume.XXXXX.swp)
+  dd if=/dev/zero "of=$swapFile" bs=1M count=$((1 * 1024)) \
+    || { rm -f "$swapFile"; echo "ERROR: failed to create temporary swapfile $swapFile"; return 1; }
   chmod 0600 "$swapFile"
   mkswap "$swapFile"
   swapon -v "$swapFile"
@@ -340,7 +344,7 @@ makeSwap() {
 
 removeSwap() {
   swapoff -a
-  rm -vf /tmp/consume.*.swp
+  rm -vf /consume.*.swp
   swapMade=""
 }
 
