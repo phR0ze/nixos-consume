@@ -342,8 +342,10 @@ makeSwap() {
   swapMade=y
 }
 
+# Only our own swapfile - `swapoff -a` would also disable the host's existing swap partition,
+# which checkExistingSwap on any re-run would then miss and fail to carry over.
 removeSwap() {
-  swapoff -a
+  swapoff "$swapFile" || true
   rm -vf /consume.*.swp
   swapMade=""
 }
