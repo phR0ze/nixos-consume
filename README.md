@@ -74,7 +74,7 @@ Ensure your host is configured with at least ***2GB of RAM*** and a ***20GB or l
 
 4. Run the script the script as `root`
    ```bash
-   sudo su
+   sudo -i
    curl https://raw.githubusercontent.com/phR0ze/nixos-consume/main/consume | NIXPKGS=nixos-unstable bash
 
    # Example output
@@ -109,13 +109,16 @@ Ensure your host is configured with at least ***2GB of RAM*** and a ***20GB or l
    install -m 600 -o root -g root /tmp/keys.txt /root/.config/sops/age/keys.txt
    ```
 7. Deploy your configuration. here's my personal example
-   1. Create the nix shell that has your deps
+   1. Create the nix shell that has your deps e.g.
       ```bash
       nix-shell -p git sops
       ```
-   2. Clone my target configuration
+   2. Clone your target configuration you've presumably already adapted for the VPS.
       ```bash
       cd /etc/nixos
+
+      # this is destructive, only do this if you already have the configuration saved like I have
+      # othewise you'll want to use the existing and build from it.
       rm *
       rm .*
       git clone https://github.com/phR0ze/nixos-config
